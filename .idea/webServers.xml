@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="92bf0d96-2eed-4f36-b92b-bfcf8b310f96" name="ubuntu开发">
+        <fileTransfer rootFolder="/home/hhcm/star" accessType="SFTP" host="192.168.35.139" port="22" sshConfigId="28511b95-7757-4b0e-af0e-3c0652d05b55" sshConfig="hhcm@192.168.35.139:22 password">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" keepAliveTimeout="0" passiveMode="true" shareSSLContext="true" isUseSudo="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>
