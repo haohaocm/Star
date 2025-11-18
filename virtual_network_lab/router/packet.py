@@ -1,41 +1,36 @@
 # router/packet.py
-import struct
+import json
 
-ETH_HEADER_LEN = 14
-
-def mac_bytes_to_str(mac_bytes: bytes) -> str:
-    return ":".join(f"{b:02x}" for b in mac_bytes)
-
-def mac_str_to_bytes(mac_str: str) -> bytes:
-    return bytes(int(part, 16) for part in mac_str.split(":"))
-
-class EthernetFrame:
+class Packet:
     """
-    以太网帧格式:
-    +-----------------+-----------------+------------+----------+
-    | 6B dst_mac      | 6B src_mac      | 2B type    | payload  |
-    +-----------------+-----------------+------------+----------+
+    简单的逻辑包:
+    - src: 源“地址”（可以是 MAC/主机名/IP 字符串，随你定义）
+    - dst: 目的“地址”
+    - protocol: 协议类型字符串，比如 "L2" / "ICMP" / "DATA"
+    - payload: 负载内容（字符串）
     """
 
-    def __init__(self, dst_mac: str, src_mac: str, eth_type: int, payload: bytes):
-        self.dst_mac = dst_mac
-        self.src_mac = src_mac
-        self.eth_type = eth_type  # 0x0800 = IPv4, 0x86DD = IPv6, 0x0806 = ARP, etc.
+    def __init__(self, src, dst, protocol, payload):
+        self.src = src
+        self.dst = dst
+        self.protocol = protocol
         self.payload = payload
 
-    def to_bytes(self) -> bytes:
-        dst = mac_str_to_bytes(self.dst_mac)
-        src = mac_str_to_bytes(self.src_mac)
-        header = dst + src + struct.pack("!H", self.eth_type)
-        return header + self.payload
+    def encode(self) -> bytes:
+        data = {
+            "src": self.src,
+            "dst": self.dst,
+            "protocol": self.protocol,
+            "payload": self.payload,
+        }
+        return json.dumps(data).encode("utf-8")
 
     @staticmethod
-    def from_bytes(data: bytes):
-        if len(data) < ETH_HEADER_LEN:
-            return None
-        dst = mac_bytes_to_str(data[0:6])
-        src = mac_bytes_to_str(data[6:12])
-        eth_type = struct.unpack("!H", data[12:14])[0]
-        payload = data[14:]
-        frame = EthernetFrame(dst, src, eth_type, payload)
-        return frame
+    def decode(raw: bytes):
+        data = json.loads(raw.decode("utf-8"))
+        return Packet(
+            src=data["src"],
+            dst=data["dst"],
+            protocol=data["protocol"],
+            payload=data["payload"],
+        )
