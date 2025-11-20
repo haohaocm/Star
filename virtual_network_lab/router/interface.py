@@ -1,43 +1,39 @@
-# router/interface.py
+# interface.py
 import socket
-from packet import Packet
+from ethernet import EthernetFrame, ETH_HEADER_LEN
 
 class Interface:
-    """
-    一个逻辑接口:
-    - 用 UDP 套接字监听 (ip, port)
-    - peers: 这个端口“连出去”的对端列表，用于模拟连接的设备/链路
-    """
-
-    def __init__(self, name, ip, port):
+    def __init__(self, name: str):
         self.name = name
-        self.ip = ip
-        self.port = port
-
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.sock.bind((ip, port))
+        self.sock = socket.socket(socket.AF_PACKET, socket.SOCK_RAW,
+                                  socket.ntohs(0x0003))
+        self.sock.bind((name, 0))
         self.sock.setblocking(False)
 
-        # list[(peer_ip, peer_port)]
-        self.peers = []
-
-    def add_peer(self, ip, port):
-        """为此接口添加一个可以发送的对端"""
-        self.peers.append((ip, port))
-
-    def send(self, dst_ip, dst_port, packet: Packet):
-        self.sock.sendto(packet.encode(), (dst_ip, dst_port))
-
-    def send_to_all_peers(self, packet: Packet):
-        """Flood：向该接口所有对端发送"""
-        for ip, port in self.peers:
-            self.sock.sendto(packet.encode(), (ip, port))
-
     def recv(self):
-        """非阻塞接收一个包，返回 (Packet, addr) 或 (None, None)"""
         try:
-            raw, addr = self.sock.recvfrom(4096)
-            pkt = Packet.decode(raw)
-            return pkt, addr  # addr = (ip, port)
+            raw, addr = self.sock.recvfrom(65535)
+            # addr: (ifname, proto, pkttype, hatype, addr)
+            print(f"------[{self.name}] ✅ 真正收到一帧: addr={addr}, len={len(raw)}")
+
+            # 过滤本机发出的 OUTGOING 帧
+            # pkttype == 4 (PACKET_OUTGOING)
+            if len(addr) >= 3 and addr[2] == 4:
+                print(f"[{self.name}] ✅ 过滤了 OUTGOING 包")
+                return None, None
+
+            print(f"[{self.name}] ✅ 处理正常包")
+            frame = EthernetFrame.from_bytes(raw)
+            return frame, raw
+
         except BlockingIOError:
+            # 这里什么也不打印，避免刷屏
             return None, None
+
+    def send_raw(self, raw: bytes):
+        print(f"------向[{self.name}] ✅ 发送包，len={len(raw)}")
+        self.sock.send(raw)
+
+    def send_frame(self, frame: EthernetFrame):
+        print(f"------向[{self.name}] ✅ 发送帧")
+        self.send_raw(frame.to_bytes())
